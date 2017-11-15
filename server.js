@@ -5,5 +5,10 @@ var serveStatic = require('serve-static');
 app = express();
 app.use(serveStatic(__dirname + "/dist"));
 var port = process.env.PORT || 5000;
-app.listen(port);
+server = app.listen(port);
+var io = require('socket.io')(server);
+
+io.on('connection', function(socket){
+    console.log('a user connected', socket);
+});
 console.log('server started '+ port);

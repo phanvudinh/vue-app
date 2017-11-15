@@ -21,7 +21,7 @@
 </template>
 
 <script>
-// import axios from 'axios'
+import io from 'socket.io-client'
 
 export default {
   name: 'HelloWorld',
@@ -29,6 +29,19 @@ export default {
     return {
       msg: 'Welcome to Your Vue.js App'
     }
+  },
+  mounted () {
+    console.log('mounted')
+    const socket = io()
+    socket.on('connect', function () {
+      console.log('connect')
+    })
+    socket.on('event', function (data) {
+      console.log(data)
+    })
+    socket.on('disconnect', function () {
+      console.log('disconnect')
+    })
   }
 }
 </script>

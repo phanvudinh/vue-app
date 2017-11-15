@@ -6,11 +6,9 @@ if (!process.env.NODE_ENV) {
   process.env.NODE_ENV = JSON.parse(config.dev.env.NODE_ENV)
 }
 console.log("SERVER DEV")
-const cloudscraper = require('cloudscraper');
 const opn = require('opn')
 const path = require('path')
 const express = require('express')
-const https = require('https')
 const webpack = require('webpack')
 const proxyMiddleware = require('http-proxy-middleware')
 const webpackConfig = (process.env.NODE_ENV === 'testing' || process.env.NODE_ENV === 'production')
@@ -26,68 +24,6 @@ const autoOpenBrowser = !!config.dev.autoOpenBrowser
 const proxyTable = config.dev.proxyTable
 
 const app = express()
-// create endPoint
-let negotiateUrlOptions = {
-  protocol: 'https:',
-  slashes: true,
-  auth: null,
-  host: 'socket.bittrex.com',
-  port: null,
-  hostname: 'socket.bittrex.com',
-  hash: null,
-  search: '?connectionData=%5B%7B%22name%22%3A%22corehub%22%7D%5D&clientProtocol=1.5',
-  query:
-   { connectionData: '[{"name":"corehub"}]',
-     clientProtocol: '1.5' },
-  pathname: '/signalr/negotiate',
-  path: '/signalr/negotiate?connectionData=%5B%7B%22name%22%3A%22corehub%22%7D%5D&clientProtocol=1.5',
-  href: 'wss://socket.bittrex.com/signalr/negotiate?connectionData=%5B%7B%22name%22%3A%22corehub%22%7D%5D&clientProtocol=1.5',
-}
-
-function negotiateProxies(negotiateUrlOptions, httpResponse) {
-  var negotiateData = "";
-
-  var negotiateFunction = function (res) {
-      res.on('data', function (chunk) {
-          negotiateData += chunk;
-      });
-      res.on('end', function (endRes) {
-          try {
-            console.log(res)
-              if (res.statusCode == 200) {
-                  var negotiateObj = JSON.parse(negotiateData);
-                  httpResponse.send(negotiateObj);
-              } else if (res.statusCode == 401 || res.statusCode == 302) {
-                  console.log("Unauthority")
-              } else {
-                  console.log('Negotiate Unknown', undefined, res.statusCode);
-              }
-          } catch (e) {
-              console.log('Parse Error', e, negotiateData);
-          }
-      });
-      res.on('error', function (e) {
-          console.log('HTTP Error', e);
-      });
-  };
-  var negotiateResult = https.get(negotiateUrlOptions, negotiateFunction).on('error', () => console.log('error'));
-}
-
-app.get('/getCookies', function(req, res) {
-  cloudscraper.get('https://bittrex.com/', function(error, response, body) {
-    if (error) {
-      console.error('Cloudscraper error occurred');
-      console.error(error);
-    } else {
-      let headers = { 
-        cookie: (response.request.headers["cookie"] || ''),
-        'User-Agent': (response.request.headers["User-Agent"] || '')
-      }
-      negotiateUrlOptions.headers = headers
-      negotiateProxies(negotiateUrlOptions, res)
-    }
-  })
-});
 
 const compiler = webpack(webpackConfig)
 
@@ -160,6 +96,20 @@ devMiddleware.waitUntilValid(() => {
       opn(uri)
     }
     server = app.listen(port)
+
+    var io = require('socket.io')(server);
+    var count = 0
+    io.on('connection', function(socket){
+      console.log(++count)
+      setInterval(function () {
+        io.emit('event', socket.id);
+      }, 2000);
+
+      socket.on('disconnect', function(){
+        socket.close();
+        console.log('user disconnected');
+      });
+    });
     _resolve()
   })
 })
